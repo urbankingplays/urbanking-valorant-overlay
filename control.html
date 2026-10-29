@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UrbanKing Valorant Online Control Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+:root{--bg:#08100f;--panel:#101b19;--green:#00f5a0;--green2:#00c978;--text:#edfff7;--muted:#9bb3a9;--border:#25463b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#123025 0,#08100f 55%);color:var(--text);font:14px/1.45 Arial,Helvetica,sans-serif;padding:22px}
+main{max-width:760px;margin:0 auto}.eyebrow{font-size:11px;letter-spacing:3px;color:var(--green);font-weight:800}h1{font-size:27px;margin:5px 0 6px}p{color:var(--muted);margin-top:0}.card{background:rgba(16,27,25,.96);border:1px solid var(--border);padding:18px;border-radius:12px;margin:16px 0;box-shadow:0 12px 30px #0002}.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:flex;flex-direction:column;gap:6px}label{color:#b7cdc4;font-size:12px;font-weight:700;letter-spacing:.4px}input,select{width:100%;background:#07110e;color:var(--text);border:1px solid #34594b;border-radius:7px;padding:11px;font:inherit;outline:none}input:focus,select:focus{border-color:var(--green)}.rrrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:7px;padding:11px 16px;font-weight:800;cursor:pointer;background:var(--green);color:#042016}button.secondary{background:#203b31;color:#d9fff0;border:1px solid #386552}button.loss{background:#ff6577;color:#26060a}button:active{transform:translateY(1px)}.status{color:var(--green);font-size:12px;margin-top:10px;min-height:18px}.hint{font-size:12px;color:var(--muted)}.preview{font-size:24px;font-weight:900;letter-spacing:1px}.preview small{font-size:13px;color:var(--green)}@media(max-width:560px){body{padding:12px}.grid,.rrrow{grid-template-columns:1fr}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<main>
+ <div class="eyebrow">STREAM HUD / CONTROL</div>
+ <h1>Valorant Rank + RR Control</h1>
+ <p>Change the values here; the OBS overlay updates automatically. Keep this page open while streaming.</p>
+ <div class="card" id="loginCard">
+  <div class="eyebrow">PRIVATE ACCESS</div>
+  <h2 style="margin:5px 0 12px">Sign in to update your overlay</h2>
+  <div class="grid">
+   <div class="field"><label for="email">EMAIL</label><input id="email" type="email" autocomplete="username" placeholder="Your Supabase user email"></div>
+   <div class="field"><label for="password">PASSWORD</label><input id="password" type="password" autocomplete="current-password" placeholder="Your Supabase password"></div>
+  </div>
+  <div class="buttons"><button id="login">SIGN IN</button><button class="secondary" id="logout" hidden>SIGN OUT</button></div>
+  <div class="status" id="authStatus" role="status">Sign in to enable editing.</div>
+ </div>
+ <div class="card" id="editorCard" style="opacity:.55">
+  <div class="grid">
+   <div class="field"><label for="player">PLAYER / CHANNEL NAME</label><input id="player" maxlength="28" value="PLAYER NAME"></div>
+   <div class="field"><label for="rank">CURRENT RANK</label><select id="rank">
+    <option>IRON 1</option><option>IRON 2</option><option>IRON 3</option>
+    <option>BRONZE 1</option><option>BRONZE 2</option><option>BRONZE 3</option>
+    <option>SILVER 1</option><option>SILVER 2</option><option>SILVER 3</option>
+    <option>GOLD 1</option><option>GOLD 2</option><option>GOLD 3</option>
+    <option>PLATINUM 1</option><option>PLATINUM 2</option><option>PLATINUM 3</option>
+    <option>DIAMOND 1</option><option>DIAMOND 2</option><option>DIAMOND 3</option>
+    <option selected>ASCENDANT I</option><option>ASCENDANT II</option><option>ASCENDANT III</option>
+    <option>IMMORTAL 1</option><option>IMMORTAL 2</option><option>IMMORTAL 3</option><option>RADIANT</option>
+   </select></div>
+   <div class="field"><label for="rr">CURRENT RR (0–100)</label><input id="rr" type="number" min="0" max="100" value="75"></div>
+   <div class="field"><label for="ping">PEAK RANK</label><select id="ping">
+    <option>IRON 1</option><option>IRON 2</option><option>IRON 3</option>
+    <option>BRONZE 1</option><option>BRONZE 2</option><option>BRONZE 3</option>
+    <option>SILVER 1</option><option>SILVER 2</option><option>SILVER 3</option>
+    <option>GOLD 1</option><option>GOLD 2</option><option>GOLD 3</option>
+    <option>PLATINUM 1</option><option>PLATINUM 2</option><option>PLATINUM 3</option>
+    <option>DIAMOND 1</option><option>DIAMOND 2</option><option>DIAMOND 3</option>
+    <option>ASCENDANT 1</option><option>ASCENDANT 2</option><option>ASCENDANT 3</option>
+    <option>IMMORTAL 1</option><option>IMMORTAL 2</option><option>IMMORTAL 3</option>
+    <option>RADIANT</option>
+   </select></div>
+  </div>
+  <div class="buttons"><button id="save">UPDATE OVERLAY</button><button class="secondary" id="reset">RESET TO EXAMPLE</button></div>
+  <div class="status" id="status" role="status">Ready — example values loaded.</div>
+ </div>
+ <div class="card">
+  <div class="eyebrow">AFTER EACH MATCH</div>
+  <h2 style="margin:5px 0 12px">Apply RR change</h2>
+  <div class="rrrow">
+   <div class="field"><label for="delta">RR WON / LOST</label><input id="delta" type="number" min="0" max="100" value="21"></div>
+   <div class="field"><label for="result">MATCH RESULT</label><select id="result"><option value="WIN">WIN</option><option value="LOSS">LOSS</option></select></div>
+  </div>
+  <div class="buttons"><button id="win">WIN — ADD RR</button><button class="loss" id="loss">LOSS — SUBTRACT RR</button></div>
+  <p class="hint">RR is adjusted automatically. If you cross 0 or 100, the value is clamped to that range; update your rank manually if you rank up or down.</p>
+ </div>
+ <div class="card">
+  <div class="eyebrow">LIVE VALUE</div>
+  <div class="preview"><span id="liveRank">ASCENDANT I</span> <small><span id="liveRR">75</span> RR</small></div>
+  <p class="hint">Peak rank is a manual display field. Choose your highest achieved rank; it does not change when your current rank changes.</p>
+ </div>
+</main>
+<script>
+const defaults={player:'UrbanKing',rank:'UNRANKED',rr:0,ping:'UNRANKED',lastMatchRR:0};
+const $=id=>document.getElementById(id);
+let supa=null, session=null, currentLastMatchRR=0;
+function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
+function setEditorEnabled(enabled){
+ $('editorCard').style.opacity=enabled?'1':'.55';
+ $('editorCard').querySelectorAll('input,select,button').forEach(el=>el.disabled=!enabled);
+ $('logout').hidden=!enabled;
+}
+function formState(){return {player:$('player').value.trim()||'UrbanKing',rank:$('rank').value,rr:clamp(parseInt($('rr').value,10)||0,0,100),ping:$('ping').value,lastMatchRR:currentLastMatchRR};}
+async function readState(){
+ const {data,error}=await supa.from('overlay_state').select('player_name,current_rank,rr,peak_rank,last_match_rr').eq('id',1).single();
+ if(error) throw error;
+ return {player:data.player_name,rank:data.current_rank,rr:data.rr,ping:data.peak_rank,lastMatchRR:data.last_match_rr||0};
+}
+async function fillForm(){
+ const s=await readState(); currentLastMatchRR=s.lastMatchRR;
+ $('player').value=s.player; $('rank').value=s.rank; $('rr').value=s.rr; $('ping').value=s.ping;
+ $('liveRank').textContent=s.rank; $('liveRR').textContent=s.rr;
+}
+async function saveState(s,message='Overlay updated!'){
+ if(!session) throw new Error('Please sign in first.');
+ const {error}=await supa.from('overlay_state').update({player_name:s.player,current_rank:s.rank,rr:s.rr,peak_rank:s.ping,last_match_rr:s.lastMatchRR,updated_at:new Date().toISOString()}).eq('id',1);
+ if(error) throw error;
+ currentLastMatchRR=s.lastMatchRR;
+ $('liveRank').textContent=s.rank; $('liveRR').textContent=s.rr;
+ $('status').textContent=message;
+}
+async function publish(message='Overlay updated!'){try{const s=formState();$('rr').value=s.rr;await saveState(s,message);}catch(e){$('status').textContent='Save failed: '+e.message;}}
+async function applyMatch(result){
+ const s=formState(),delta=Math.abs(parseInt($('delta').value,10)||0);
+ const signed=result==='WIN'?delta:-delta;
+ s.rr=clamp(s.rr+signed,0,100); s.lastMatchRR=signed; $('rr').value=s.rr;
+ await publish((result==='WIN'?'Win recorded: ':'Loss recorded: ')+(signed>0?'+':'')+signed+' RR');
+}
+async function init(){
+ setEditorEnabled(false);
+ if(!window.URBANKING_CONFIG || !window.URBANKING_CONFIG.supabasePublishableKey || window.URBANKING_CONFIG.supabasePublishableKey.includes('PASTE_YOUR')){
+  $('authStatus').textContent='Setup needed: add your Supabase publishable key to config.js.'; return;
+ }
+ supa=window.supabase.createClient(window.URBANKING_CONFIG.supabaseUrl,window.URBANKING_CONFIG.supabasePublishableKey);
+ const {data:{session:s}}=await supa.auth.getSession(); session=s;
+ if(session){$('authStatus').textContent='Signed in.';setEditorEnabled(true);try{await fillForm();$('status').textContent='Connected to Supabase.';}catch(e){$('status').textContent='Could not load state: '+e.message;}}
+ else $('authStatus').textContent='Sign in with the user you created in Supabase Authentication.';
+ supa.auth.onAuthStateChange((_event,s)=>{session=s; if(s){$('authStatus').textContent='Signed in.';setEditorEnabled(true);setTimeout(()=>fillForm().catch(e=>$('status').textContent=e.message),0);}else{setEditorEnabled(false);$('authStatus').textContent='Signed out.';}});
+}
+$('login').addEventListener('click',async()=>{
+ try{if(!supa)throw new Error('Set the publishable key in config.js first.');const {data,error}=await supa.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;session=data.session;$('authStatus').textContent='Signed in.';setEditorEnabled(true);await fillForm();$('status').textContent='Connected to Supabase.';}
+ catch(e){$('authStatus').textContent='Sign-in failed: '+e.message;}
+});
+$('logout').addEventListener('click',async()=>{if(supa)await supa.auth.signOut();session=null;setEditorEnabled(false);$('authStatus').textContent='Signed out.';});
+$('save').addEventListener('click',()=>publish());
+$('reset').addEventListener('click',async()=>{ $('player').value=defaults.player;$('rank').value=defaults.rank;$('rr').value=defaults.rr;$('ping').value=defaults.ping;currentLastMatchRR=0;await publish('Example values restored.');});
+$('win').addEventListener('click',()=>applyMatch('WIN'));
+$('loss').addEventListener('click',()=>applyMatch('LOSS'));
+init();
+</script>
+</body>
+</html>

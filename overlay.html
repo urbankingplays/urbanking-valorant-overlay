@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UrbanKing Valorant Rank Overlay</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+:root{--gold:#ffc84f;--gold2:#a96920;--cream:#fff2d9;--red:#f21f37;--green:#10e6a0;--panel:#160709;--muted:#d8b56d}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;font-family:Arial,Helvetica,sans-serif}
+.stage{position:relative;width:810px;height:190px;margin:0;padding:0;overflow:hidden;background:transparent;color:var(--cream)}
+.hud{position:absolute;left:0;top:0;width:810px;height:180px;display:grid;grid-template-columns:154px minmax(0,1fr) 270px;background:linear-gradient(105deg,#4b1018 0%,#23090d 25%,#100608 70%,#310a10 100%);border:2px solid var(--gold2);clip-path:polygon(0 0,96.2% 0,100% 18%,100% 80%,96.4% 100%,0 100%,0 78%,1.7% 68%,1.7% 31%,0 21%);box-shadow:0 0 16px rgba(242,31,55,.2);overflow:hidden}
+.hud:before{content:"";position:absolute;inset:8px;border:1px solid rgba(255,200,79,.3);pointer-events:none;clip-path:polygon(0 0,96.2% 0,100% 18%,100% 80%,96.4% 100%,0 100%,0 78%,1.7% 68%,1.7% 31%,0 21%)}
+.hud:after{content:"";position:absolute;right:22px;top:16px;width:120px;height:90px;background:linear-gradient(130deg,transparent 15%,rgba(242,31,55,.1) 15% 18%,transparent 18% 40%,rgba(242,31,55,.08) 40% 44%,transparent 44%);pointer-events:none}
+.emblem-wrap{height:100%;display:flex;align-items:center;justify-content:center;border-right:2px solid rgba(255,200,79,.45);background:radial-gradient(ellipse at center,rgba(242,31,55,.2),rgba(20,4,7,.15) 70%)}
+.emblem{width:70px;height:70px;display:grid;place-items:center;filter:drop-shadow(0 0 9px rgba(242,31,55,.4))}
+.emblem img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 5px rgba(242,31,55,.35))}
+.middle{position:relative;min-width:0;padding:14px 18px 0 24px;z-index:1;border-right:1px solid rgba(255,200,79,.42)}
+.player{font-size:18px;letter-spacing:2.5px;color:var(--gold);font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;text-shadow:0 0 8px rgba(255,200,79,.16)}
+.rank{font-size:38px;line-height:1.02;font-weight:900;letter-spacing:1.7px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff2d9;text-shadow:1px 1px 0 #9e4524,0 0 12px rgba(242,31,55,.18)}
+.rule,.sub,.footer{display:none!important}
+.rr-progress{position:absolute;left:24px;right:16px;bottom:31px;height:34px;padding:0;background:transparent;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;z-index:3}
+.rr-progress-label{font-size:11px;line-height:1;color:#ffcf69;letter-spacing:.8px;font-weight:900;text-align:left;white-space:nowrap;text-shadow:0 1px 3px #000}
+.rr-track{height:8px;width:100%;position:relative;border:1.5px solid rgba(255,200,79,.92);border-radius:4px;background:#080506;overflow:hidden;box-shadow:0 0 8px rgba(255,200,79,.14)}
+.rr-fill{height:100%;width:75%;background:linear-gradient(90deg,#f21f37 0%,#ff4c2c 23%,#ff9b2c 43%,#ffdc42 58%,#a7ec50 78%,#10e6a0 100%);box-shadow:0 0 8px rgba(255,200,79,.3);transition:width .25s ease}
+.rr-tick{position:absolute;top:-1px;height:8px;width:2px;background:rgba(255,250,233,.9);z-index:2;pointer-events:none}
+.rr-scale{display:flex;justify-content:space-between;margin-top:0;color:#f8e9d0;font-size:8px;font-weight:800;line-height:1;letter-spacing:.2px;padding:0 1px}
+.rrbox{position:relative;top:auto;right:auto;width:auto;height:100%;border:0;border-left:1px solid rgba(255,200,79,.42);background:linear-gradient(105deg,rgba(40,8,13,.28),rgba(22,6,9,.1));display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px;padding:14px 16px 20px 18px;min-width:0;clip-path:none;box-shadow:none;z-index:2}
+.rrbox:before{content:"";position:absolute;inset:8px;border:1px solid rgba(255,200,79,.16);pointer-events:none}
+.peak-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;min-width:0;width:100%;height:100%;z-index:1}
+.rrlabel{font-size:13px;letter-spacing:2px;color:var(--gold);font-weight:900;text-align:left;white-space:nowrap}
+.rrline{display:flex;align-items:center;justify-content:flex-start;max-width:100%;width:100%;padding:0;min-width:0}
+.rr{font-size:34px;line-height:1.02;font-weight:900;color:#fff6e5;text-shadow:0 0 10px rgba(255,200,79,.2);font-variant-numeric:tabular-nums;white-space:normal;overflow:visible;text-overflow:clip;text-align:left;max-width:100%;letter-spacing:.1px;overflow-wrap:anywhere}
+.rrunit{display:none}
+.peak-badge{display:none!important}
+.match{position:absolute;left:24px;bottom:9px;grid-column:auto;grid-row:auto;font-size:14px;line-height:1.1;color:#fff6e5;letter-spacing:.45px;text-transform:uppercase;max-width:calc(100% - 40px);width:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;margin:0;z-index:4;border:0;padding:0;font-weight:800;display:flex;align-items:center;gap:0;min-height:16px}
+.match strong{display:inline;color:#fff6e5;font-size:14px;letter-spacing:.45px;margin-left:6px;white-space:nowrap;font-weight:900}
+@media(max-width:810px){.stage{transform-origin:top left;transform:scale(calc(100vw / 810));}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="hud">
+    <div class="emblem-wrap"><div class="emblem"><img src="urbanking-logo.png" alt="UrbanKing logo"></div></div>
+    <div class="middle">
+      <div class="player" id="player">PLAYER NAME</div>
+      <div class="rank" id="rank">ASCENDANT I</div>
+      <div class="rule"></div><div class="sub">COMPETITIVE RANK</div>
+      <div class="rr-progress" aria-label="Current RR progress">
+        <div class="rr-progress-label" id="rrValue">CURRENT RR · 75 / 100</div>
+        <div class="rr-track">
+          <div class="rr-fill" id="rrFill"></div>
+          <span class="rr-tick" style="left:25%"></span><span class="rr-tick" style="left:50%"></span><span class="rr-tick" style="left:75%"></span>
+        </div>
+        <div class="rr-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+      </div>
+      <div class="match" id="match">LAST MATCH:<strong>+21 RR</strong></div>
+    </div>
+  <div class="rrbox">
+    <div class="peak-info"><div class="rrlabel">PEAK RANK</div><div class="rrline"><span class="rr" id="ping">ASCENDANT 1</span></div></div>
+    <div class="peak-badge" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="42" height="42">
+        <path d="M24 2 L39 10 L45 25 L35 41 L24 46 L13 41 L3 25 L9 10 Z" fill="#0d392f" stroke="#ffc84f" stroke-width="2"/>
+        <path d="M24 6 L35 13 L39 25 L32 36 L24 41 L16 36 L9 25 L13 13 Z" fill="#159d78" stroke="#fff0bd" stroke-width="1.5"/>
+        <path d="M24 11 L31 21 L27 33 L21 33 L17 21 Z" fill="#e8fff4" stroke="#a96920" stroke-width="1.3"/>
+        <path d="M24 15 L27 23 L24 29 L21 23 Z" fill="#fff8df"/>
+      </svg>
+    </div>
+  </div>
+  </div>
+</div>
+<script>
+const defaults={player:'UrbanKing',rank:'UNRANKED',rr:0,ping:'UNRANKED',lastMatch:'0 RR'};
+function apply(s){
+ document.getElementById('player').textContent=s.player||defaults.player;
+ document.getElementById('rank').textContent=s.rank||defaults.rank;
+ const peak=document.getElementById('ping'); if(peak) peak.textContent=s.ping||defaults.ping;
+ const rr=Math.max(0,Math.min(100,Number(s.rr??0)||0));
+ const rrValue=document.getElementById('rrValue'), rrFill=document.getElementById('rrFill');
+ if(rrValue) rrValue.textContent='CURRENT RR · '+rr+' / 100';
+ if(rrFill) rrFill.style.width=rr+'%';
+ const match=document.getElementById('match');
+ if(match){match.replaceChildren();const label=document.createElement('span');label.textContent='LAST MATCH:';const value=document.createElement('strong');const n=Number(s.lastMatchRR??0);value.textContent=(n>0?'+':'')+n+' RR';match.append(label,value);}
+}
+let client=null;
+async function loadState(){
+ try{
+  if(!window.URBANKING_CONFIG || !window.URBANKING_CONFIG.supabasePublishableKey || window.URBANKING_CONFIG.supabasePublishableKey.includes('PASTE_YOUR')) { apply(defaults); return; }
+  if(!client) client=window.supabase.createClient(window.URBANKING_CONFIG.supabaseUrl,window.URBANKING_CONFIG.supabasePublishableKey);
+  const {data,error}=await client.from('overlay_state').select('player_name,current_rank,rr,peak_rank,last_match_rr').eq('id',1).single();
+  if(error) throw error;
+  apply({player:data.player_name,rank:data.current_rank,rr:data.rr,ping:data.peak_rank,lastMatchRR:data.last_match_rr});
+ }catch(e){ console.error('UrbanKing overlay data load failed:',e.message); }
+}
+loadState();
+setInterval(loadState,2000);
+</script>
+</body>
+</html>
